@@ -2,7 +2,7 @@ import discord
 import os
 from discord.ext import commands
 
-#os.chdir("Koneko")
+os.chdir("Koneko") # for when my working directory contains koneko folder
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="nyaa!", intents = intents)
