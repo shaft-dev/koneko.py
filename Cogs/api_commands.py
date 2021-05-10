@@ -17,6 +17,11 @@ class VideoUnsupported(Exception):
     pass
 
 def format_reddit_embed(post: dict) -> discord.Embed:
+    """
+    Formats a post object into an embed to send to a text channel
+    :param post: Reddit post information in dictionary format
+    :return: discord embed object
+    """
     if post["possible_type"] == "video":
         raise VideoUnsupported
     embed = discord.Embed()
@@ -40,6 +45,12 @@ class api_cmds(commands.Cog):
     
     @commands.command(name="reddit", aliases=["r", "red"])
     async def reddit_req(self, ctx: commands.Context, *args: list) -> None:
+        """
+        Make a request to reddit for json to format into a post to send to
+        a text channel
+        :param ctx: discord Context object
+        :param args: A list of command arguments
+        """
         if ctx.author.bot:
             return
         try:
@@ -54,6 +65,7 @@ class api_cmds(commands.Cog):
                 limit = sub.join(args[2])
             posts = get_reddit_posts(sub, s_type, limit)
             post = choice(posts)
+            # for some reason having an issue if i dont do == true/false
             if post["nsfw"] == True and ctx.channel.is_nsfw() == False:
                 raise ChanNotNSFW
             embed = format_reddit_embed(post)
