@@ -26,6 +26,7 @@ class util_cmds(commands.Cog):
     @commands.command(name="default_role", aliases=["dr", "def_role"])
     @commands.has_permissions(administrator=True)
     async def default_role(self, ctx: commands.Context, arg: str = None) -> None:
+        # fix this command at some point. it's written in a dumb manner
         """
         Allows a guild administrator to set a default role to give users
         when they join the guild
