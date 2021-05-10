@@ -1,12 +1,19 @@
 from discord.ext import commands
 import json
 from discord.utils import get
+import discord
 
 class util_cmds(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
     @commands.command()
     async def info(self, ctx: commands.Context, arg: str = None) -> None:
+        """
+        Help command
+        :param ctx: Context object
+        :param arg: specifies help subsection
+        :return: None
+        """
         if ctx.author.bot:
             return
         await ctx.send("This bot is in a development-only state. \
@@ -52,6 +59,12 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
     @commands.command(name="role_react", aliases=["rr"])
     @commands.has_permissions(manage_roles=True)
     async def role_react(self, ctx: commands.Context, *args: list) -> None:
+        """
+        Allows anyone with manage roles permissions to set up reactions for getting roles
+        :param ctx: Context object
+        :param args: list of arguments in order emoji, role name
+        :return: None
+        """
         if ctx.author.bot:
             return
         if len(args) < 2:
@@ -78,16 +91,22 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
                 guild_info["role_reactions"][str(msg.id)] = dict()
                 guild_info["role_reactions"][str(msg.id)][emoji] = role.id
                 await msg.add_reaction(emoji)
+                await ctx.message.delete()
             else:
                 # should only be one reaction message
-                # will have to deal with message being deleted later
-                msg = await ctx.fetch_message(list(guild_info["role_reactions"].keys())[0])
-                if not emoji in guild_info["role_reactions"][str(msg.id)]:
-                    guild_info["role_reactions"][str(msg.id)][emoji] = role.id
-                    await msg.edit(content=msg.content + f"\n\n`{emoji}: {role_name}`")
-                    await msg.add_reaction(emoji)
-                else:
-                    await ctx.send("Emoji is already being used for another role.")
+                # will have to deal with message being deleted later - dealt with
+                try:
+                    msg = await ctx.fetch_message(list(guild_info["role_reactions"].keys())[0])
+                    if not emoji in guild_info["role_reactions"][str(msg.id)]:
+                        guild_info["role_reactions"][str(msg.id)][emoji] = role.id
+                        await msg.edit(content=msg.content + f"\n`{emoji}: {role_name}`")
+                        await msg.add_reaction(emoji)
+                        await ctx.message.delete()
+                    else:
+                        await ctx.send("Emoji is already being used for another role.")
+                except discord.NotFound:
+                    guild_info.pop("role_reactions", None)
+                    await ctx.send("Error: Reaction message not found. Please try again.")
             info_file = open(info_dir, "w")
             json.dump(guild_info, info_file)
             info_file.close()
