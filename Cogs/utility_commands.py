@@ -3,6 +3,12 @@ import json
 from discord.utils import get
 import discord
 
+class NotFoundError(Exception):
+    """
+    manual indicator that discord.NotFound was excepted
+    """
+    pass
+
 class util_cmds(commands.Cog):
     """
     Utility Commands
@@ -26,7 +32,6 @@ class util_cmds(commands.Cog):
     @commands.command(name="default_role", aliases=["dr", "def_role"])
     @commands.has_permissions(administrator=True)
     async def default_role(self, ctx: commands.Context, arg: str = None) -> None:
-        # fix this command at some point. it's written in a dumb manner
         """
         Allows a guild administrator to set a default role to give users
         when they join the guild
@@ -100,8 +105,21 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
             else:
                 # should only be one reaction message
                 # will have to deal with message being deleted later - mostly dealt with
-                try:
-                    msg = await ctx.fetch_message(list(guild_info["role_reactions"].keys())[0])
+                try: 
+                    # fix this eventually, it's currently a bandaid
+                    key = list(guild_info["role_reactions"].keys())[0]
+                    channels = ctx.guild.channels
+                    msg = None
+                    not_found = False
+                    for channel in channels:
+                        try:
+                            msg = await channel.fetch_message(key)
+                            not_found = False
+                            break
+                        except:
+                            not_found = True
+                    if not_found == True:
+                        raise NotFoundError
                     if not emoji in guild_info["role_reactions"][str(msg.id)]:
                         guild_info["role_reactions"][str(msg.id)][emoji] = role.id
                         await msg.edit(content=msg.content + f"\n\n{emoji}  `{role_name}`")
@@ -109,7 +127,7 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
                         await ctx.message.delete()
                     else:
                         await ctx.send("Emoji is already being used for another role.")
-                except discord.NotFound:
+                except NotFoundError:
                     guild_info.pop("role_reactions", None)
                     await ctx.send("Error: Reaction message not found. Please try again.")
             info_file = open(info_dir, "w")
@@ -137,7 +155,19 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
         if "role_reactions" in guild_info:
             key = list(guild_info["role_reactions"].keys())[0]
             try:
-                msg = await ctx.fetch_message(key)
+                channels = await ctx.guild.fetch_channels()
+                # same bandaid
+                msg = None
+                not_found = False
+                for channel in channels:
+                    try:
+                        msg = await channel.fetch_message(key)
+                        not_found = False
+                        break
+                    except:
+                        not_found = True
+                if not_found:
+                    raise NotFoundError
                 react_dict = guild_info["role_reactions"][key]
                 if emoji in react_dict:
                     if len(react_dict) == 1:
@@ -156,7 +186,7 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
                         await ctx.message.delete()
                 else:
                     await ctx.send("This emoji is not being used for any role reaction.")
-            except discord.NotFound:
+            except NotFoundError:
                 guild_info.pop("role_reactions")
                 await ctx.send("There is no existing role reaction message.")
             info_file = open(info_dir, "w")
