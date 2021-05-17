@@ -42,44 +42,6 @@ def format_reddit_embed(post: dict) -> discord.Embed:
 class api_cmds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-    
-    @commands.command(name="reddit", aliases=["r", "red"])
-    async def reddit_req(self, ctx: commands.Context, *args: list) -> None:
-        """
-        Make a request to reddit for json to format into a post to send to
-        a text channel
-        :param ctx: discord Context object
-        :param args: A list of command arguments
-        """
-        if ctx.author.bot:
-            return
-        try:
-            # this is horrendous
-            passed = len(args)
-            sub, s_type, limit = str(), str(), str()
-            if passed >= 1:
-                sub = sub.join(args[0])
-            if passed >= 2:
-                s_type = sub.join(args[1])
-            if passed >= 3:
-                limit = sub.join(args[2])
-            posts = get_reddit_posts(sub, s_type, limit)
-            post = choice(posts)
-            # for some reason having an issue if i dont do == true/false
-            if post["nsfw"] == True and ctx.channel.is_nsfw() == False:
-                raise ChanNotNSFW
-            embed = format_reddit_embed(post)
-            embed.set_author(name="For: " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
-            await ctx.send(embed=embed)
-        except BadRequest:
-            await ctx.send("Something went wrong with the post request.")
-        except InvalidParams:
-            await ctx.send("Invalid parameters supplied to function.\
-            \nFormat required: `reddit subreddit sort_type number_of_posts`")
-        except ChanNotNSFW:
-            await ctx.send("Post is nsfw. Try again in an nsfw channel or set this channel to nsfw.")
-        except VideoUnsupported:
-            await ctx.send("Post selected is of unsupported rich embed type `video`.")
 
 def setup(bot):
     bot.add_cog(api_cmds(bot))
