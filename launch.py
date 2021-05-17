@@ -1,11 +1,13 @@
 import discord
 import os
 from discord.ext import commands
+from discord_slash import SlashCommand
 
-os.chdir("Koneko") # for when my working directory contains koneko folder
+#os.chdir("Koneko")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="nyaa!", intents = intents)
+slash = SlashCommand(bot, override_type=True, sync_commands=True)
 client = discord.Client()
 
 for file in os.listdir("./Cogs"):
