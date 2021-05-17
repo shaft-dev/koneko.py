@@ -3,6 +3,7 @@ import os
 from discord.ext import commands
 from discord_slash import SlashCommand
 
+# Below is for when the working directory is parent directory of bot directory
 #os.chdir("Koneko")
 
 intents = discord.Intents.all()
