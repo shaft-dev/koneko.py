@@ -23,6 +23,7 @@ def get_reddit_posts(sub: str = "", type: str = "hot", limit: str = "20") -> Lis
     :return: List of post information in dictionary format
     """
     # trying to do most edge checking before actual request happens
+    type = type.lower()
     possible_types = ["hot", "top", "new", "controversial", "rising"]
     if type not in possible_types:
         type = "hot"
@@ -31,11 +32,13 @@ def get_reddit_posts(sub: str = "", type: str = "hot", limit: str = "20") -> Lis
         j = int(limit)
         if j > 75:
             limit = "75"
+        elif j < 20:
+            limit = "20"
     except:
         limit = "20"
     if sub != "":
         try:
-            # algorithms has made me hate string concatenation. dumbass O(n) operation
+            # algorithms has made me hate string concatenation. dumbass O(n^2) operation
             req_url = "https://reddit.com/r/" + sub + "/" + type + "/.json?limit=" + limit
             j = requests.get(url=req_url, 
                 headers={"user-agent": "Koneko.py v0.0.1"})
