@@ -1,13 +1,10 @@
+from inspect import isgeneratorfunction
+from discord import guild
 from discord.ext import commands
 import json
 from discord.utils import get
+from discord_slash import cog_ext, SlashContext
 import discord
-
-class NotFoundError(Exception):
-    """
-    manual indicator that discord.NotFound was excepted
-    """
-    pass
 
 class util_cmds(commands.Cog):
     """
@@ -29,9 +26,13 @@ class util_cmds(commands.Cog):
         await ctx.send("This bot is in a development-only state. \
             \nNo commands are currently available.")
 
+    @cog_ext.cog_slash(name="ping", description="Get bot latency 🏓")
+    async def ping(self, ctx: SlashContext):
+        await ctx.send(f"pong! {round(self.bot.latency * 1000, 2)}ms response")
+
     @commands.command(name="default_role", aliases=["dr", "def_role"])
     @commands.has_permissions(administrator=True)
-    async def default_role(self, ctx: commands.Context, arg: str = None) -> None:
+    async def default_role(self, ctx: commands.Context, *args: list) -> None:
         """
         Allows a guild administrator to set a default role to give users
         when they join the guild
@@ -41,30 +42,29 @@ class util_cmds(commands.Cog):
         """
         if ctx.author.bot:
             return
-        info_dir = "./Servers/server_" + str(ctx.guild.id) + "/guild_info.json"
+        role_name = ""
+        for arg in args:
+            role_name += "".join(arg)
+            if arg != args[-1]:
+                role_name += " "
         roles = ctx.guild.roles
-        found = False
-        for role in roles:
-            if role.name.lower() == arg:
-                found = True
-                # lazy
-                info_file = open(info_dir, "r")
-                guild_info = dict()
-                info = info_file.read()
-                if info != "":
-                    guild_info = json.loads(info)
-                guild_info["default_role"] = role.id
-                info_file.close()
-                info_file = open(info_dir, "w")
-                json.dump(guild_info, info_file)
-                info_file.close()
-                break
-        # filter out for incorrect syntax eventually
-        if not found:
-            await ctx.send(f'Role "{arg}" not found. Multi-word roles need double-quote \
-formatting to be recognized. Ex: `set default role "cool guy"`')
+        role = get(roles, name=role_name)
+        if not role:
+            await ctx.send(f'Role "{role_name}" not found. Role names are case-sensitive')
         else:
-            await ctx.send(f'Default role changed to "{arg}" role.')
+            info_dir = "./Servers/server_" + str(ctx.guild.id) + "/guild_info.json"
+            info_file = open(info_dir, "r+")
+            guild_info = dict()
+            info = info_file.read()
+            if info != "":
+                guild_info = json.loads(info)
+            # go back to the beginning and erase it for writing.
+            info_file.seek(0)
+            info_file.truncate()
+            guild_info["default_role"] = role.id
+            json.dump(guild_info, info_file)
+            info_file.close()
+            await ctx.send(f'Default role changed to "{role_name}" role.')
 
     @commands.command(name="role_react", aliases=["rr", "rr+"])
     @commands.has_permissions(manage_roles=True)
@@ -84,53 +84,42 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
         emoji = "".join(args[0])
         role_name = str()
         for i in range(1, len(args)):
-            if i == len(args) - 1:
-                role_name += "".join(args[i])
-            else:
-                role_name += "".join(args[i]) + " "
+            role_name += "".join(args[i])
+            if i != len(args) - 1:
+                role_name += " "
         role = get(ctx.guild.roles, name=role_name)
         if role:
-            info_file = open(info_dir, "r")
+            info_file = open(info_dir, "r+")
             guild_info = json.load(info_file)
-            info_file.close()
             if not "role_reactions" in guild_info:
                 guild_info["role_reactions"] = dict()
-            # map the emoji to the role id
+            # map the emoji to the role id in form [channel_id, dict]
             if len(guild_info["role_reactions"]) == 0:
                 msg = await ctx.send(f"React to get a role:\n\n{emoji}  `{role_name}`")
-                guild_info["role_reactions"][str(msg.id)] = dict()
-                guild_info["role_reactions"][str(msg.id)][emoji] = role.id
+                guild_info["role_reactions"][str(msg.id)] = [msg.channel.id, dict()]
+                guild_info["role_reactions"][str(msg.id)][1][emoji] = role.id
                 await msg.add_reaction(emoji)
                 await ctx.message.delete()
             else:
                 # should only be one reaction message
                 # will have to deal with message being deleted later - mostly dealt with
                 try: 
-                    # fix this eventually, it's currently a bandaid
                     key = list(guild_info["role_reactions"].keys())[0]
                     channels = ctx.guild.channels
-                    msg = None
-                    not_found = False
-                    for channel in channels:
-                        try:
-                            msg = await channel.fetch_message(key)
-                            not_found = False
-                            break
-                        except:
-                            not_found = True
-                    if not_found == True:
-                        raise NotFoundError
-                    if not emoji in guild_info["role_reactions"][str(msg.id)]:
-                        guild_info["role_reactions"][str(msg.id)][emoji] = role.id
+                    channel = get(channels, id=guild_info["role_reactions"][key][0])
+                    msg = await channel.fetch_message(key)
+                    if not emoji in guild_info["role_reactions"][str(msg.id)][1]:
+                        guild_info["role_reactions"][str(msg.id)][1][emoji] = role.id
                         await msg.edit(content=msg.content + f"\n\n{emoji}  `{role_name}`")
                         await msg.add_reaction(emoji)
                         await ctx.message.delete()
                     else:
                         await ctx.send("Emoji is already being used for another role.")
-                except NotFoundError:
+                except discord.NotFound:
                     guild_info.pop("role_reactions", None)
                     await ctx.send("Error: Reaction message not found. Please try again.")
-            info_file = open(info_dir, "w")
+            info_file.seek(0)
+            info_file.truncate()
             json.dump(guild_info, info_file)
             info_file.close()
         else:
@@ -149,26 +138,15 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
             return
         emoji = arg
         info_dir = "./Servers/server_" + str(ctx.guild.id) + "/guild_info.json"
-        info_file = open(info_dir, "r")
+        info_file = open(info_dir, "r+")
         guild_info = json.load(info_file)
-        info_file.close()
         if "role_reactions" in guild_info:
             key = list(guild_info["role_reactions"].keys())[0]
             try:
-                channels = await ctx.guild.fetch_channels()
-                # same bandaid
-                msg = None
-                not_found = False
-                for channel in channels:
-                    try:
-                        msg = await channel.fetch_message(key)
-                        not_found = False
-                        break
-                    except:
-                        not_found = True
-                if not_found:
-                    raise NotFoundError
-                react_dict = guild_info["role_reactions"][key]
+                channels = ctx.guild.channels
+                channel = get(channels, id=guild_info["role_reactions"][key][0])
+                msg = await channel.fetch_message(key)
+                react_dict = guild_info["role_reactions"][key][1]
                 if emoji in react_dict:
                     if len(react_dict) == 1:
                         guild_info.pop("role_reactions", None)
@@ -186,10 +164,11 @@ formatting to be recognized. Ex: `set default role "cool guy"`')
                         await ctx.message.delete()
                 else:
                     await ctx.send("This emoji is not being used for any role reaction.")
-            except NotFoundError:
+            except discord.NotFound:
                 guild_info.pop("role_reactions")
                 await ctx.send("There is no existing role reaction message.")
-            info_file = open(info_dir, "w")
+            info_file.seek(0)
+            info_file.truncate()
             json.dump(guild_info, info_file)
             info_file.close()
 

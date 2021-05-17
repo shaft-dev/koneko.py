@@ -29,9 +29,12 @@ class bot_events(commands.Cog):
         if not os.path.isdir("./Servers"):
             os.mkdir("./Servers")
         new_dir = "./Servers/server_" + str(guild.id)
-        os.mkdir(new_dir)
-        new_file = open(new_dir + "/guild_info.json", "x")
-        new_file.close()
+        if not os.path.isdir("./Servers/server_" + str(guild.id)):
+            os.mkdir(new_dir)
+        new_file_path = new_dir + "/guild_info.json"
+        if not os.path.isfile(new_file_path):
+            new_file = open(new_file_path, "x")
+            new_file.close()
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -79,13 +82,13 @@ bot does not have Manage Roles permission or bot role is below set default role 
         guild_info = json.load(info_file)
         info_file.close()
         if "role_reactions" in guild_info and str(payload.message_id) in guild_info["role_reactions"]:
-            react_dict = guild_info["role_reactions"][str(payload.message_id)]
+            react_dict = guild_info["role_reactions"][str(payload.message_id)][1]
             emoji = str(payload.emoji)
             if emoji in react_dict:
                 role = get(member.guild.roles, id=react_dict[emoji])
                 try:
                     await member.add_roles(role)
-                    await member.send(f"Added` {role.name}` role in `{member.guild.name}`!")
+                    await member.send(f"Added `{role.name}` role in `{member.guild.name}`!")
                 except discord.Forbidden:
                     await member.guild.system_channel.send("Cannot give reaction role. Please allow manage roles permission or \
 move bot role above role to give.")
@@ -123,7 +126,7 @@ move bot role above role to give.")
         guild_info = json.load(info_file)
         info_file.close()
         if "role_reactions" in guild_info and str(payload.message_id) in guild_info["role_reactions"]:
-            react_dict = guild_info["role_reactions"][str(payload.message_id)]
+            react_dict = guild_info["role_reactions"][str(payload.message_id)][1]
             emoji = str(payload.emoji)
             if emoji in react_dict:
                 role = get(guild.roles, id=react_dict[emoji])
