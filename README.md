@@ -4,7 +4,7 @@ and was never intended to be used outside of one server <br>
 # koneko.py
 An in-progress python (from lua) rewrite of a multipurpose discord bot.
 
-## Current available commands (with syntax nyaa!command)
+## Current available commands (with syntax nyaa!command) - shifted to slash commands
 ### nyaa!default_role
 > Aliases: nyaa!def_role, nyaa!dr <br>
 > Required arguments: `role name (case-sensitive)`
