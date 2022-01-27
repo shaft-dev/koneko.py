@@ -41,7 +41,7 @@ def get_reddit_posts(sub: str = "", type: str = "hot", limit: str = "20") -> Lis
             # algorithms has made me hate string concatenation. dumbass O(n^2) operation
             req_url = "https://reddit.com/r/" + sub + "/" + type + "/.json?limit=" + limit
             j = requests.get(url=req_url, 
-                headers={"user-agent": "Koneko.py v0.0.1"})
+                headers={"user-agent": "Koneko.py"})
             parsed = json.loads(j.content)
             post_dict = parsed["data"]["children"]
             posts = list()
@@ -55,6 +55,8 @@ def get_reddit_posts(sub: str = "", type: str = "hot", limit: str = "20") -> Lis
                     to_append["possible_type"] = ""
                     if "post_hint" in post:
                         to_append["possible_type"] = post["post_hint"]
+                    if "is_gallery" in post:
+                        to_append["is_multi"] = post["is_gallery"]
                     posts.append(to_append)
             return posts
         except KeyError:
@@ -62,3 +64,19 @@ def get_reddit_posts(sub: str = "", type: str = "hot", limit: str = "20") -> Lis
         except:
             raise BadRequest("Likely not a sub or other issue caught.")
     raise InvalidParams("Insufficient parameters supplied.")
+
+def get_nekos_api(endpoint: str = None) -> str:
+    """
+    Gets an image url from nekos.fun web api
+    :param endpoint: nekos.fun endpoint to request from
+    :return: image url
+    """
+    if not endpoint:
+        raise InvalidParams("No endpoint supplied.")
+    req_url: str = f"http://api.nekos.fun:8080/api/{endpoint}"
+    unparsed_json: bytes = requests.get(url=req_url).content
+    parsed_json: dict = json.loads(unparsed_json)
+    return parsed_json["image"]
+
+
+
