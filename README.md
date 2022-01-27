@@ -1,6 +1,6 @@
-no longer being updated due to the discontinuation of discord.py
-this code is also kinda messy
-and was never intended to be used outside of one server
+no longer being updated due to the discontinuation of discord.py <br>
+this code is also kinda messy <br>
+and was never intended to be used outside of one server <br>
 # koneko.py
 An in-progress python (from lua) rewrite of a multipurpose discord bot.
 
