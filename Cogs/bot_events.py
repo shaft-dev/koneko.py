@@ -1,3 +1,4 @@
+from io import TextIOWrapper
 import os
 from discord import guild
 from discord.ext import commands
@@ -59,8 +60,8 @@ class bot_events(commands.Cog):
             try:
                 await member.add_roles(role)
             except errors.Forbidden:
-                await guild.system_channel.send("Error: add_roles forbidden. Default role set but \
-bot does not have Manage Roles permission or bot role is below set default role in role list.")
+                await guild.system_channel.send("Error: add_roles forbidden. Default role set but "
+                + "bot does not have Manage Roles permission or bot role is below set default role in role list.")
             except:
                 await guild.system_channel.send("An unknown error occured.")
 
@@ -72,26 +73,30 @@ bot does not have Manage Roles permission or bot role is below set default role 
         :param payload: a raw reaction action event payload object
         :return: None
         """
-        member = payload.member
+        member: discord.Member = payload.member
         if member.bot:
             return
         if not member.guild:
             return
-        info_dir = "./Servers/server_" + str(payload.guild_id) + "/guild_info.json"
-        info_file = open(info_dir)
-        guild_info = json.load(info_file)
+        info_dir: str = "./Servers/server_" + str(payload.guild_id) + "/guild_info.json"
+        info_file: TextIOWrapper = open(info_dir)
+        guild_info: dict = json.load(info_file)
         info_file.close()
-        if "role_reactions" in guild_info and str(payload.message_id) in guild_info["role_reactions"]:
-            react_dict = guild_info["role_reactions"][str(payload.message_id)][1]
-            emoji = str(payload.emoji)
-            if emoji in react_dict:
-                role = get(member.guild.roles, id=react_dict[emoji])
+        if "role_reactions" in guild_info and payload.message_id == guild_info["role_reactions"]["message"]:
+            react_dict: dict = guild_info["role_reactions"]["reactions"]
+            emoji: str = str(payload.emoji)
+            if emoji in guild_info["role_reactions"]["emojis_used"]:
+                role: discord.Role = get(member.guild.roles, id=guild_info["role_reactions"]["emojis_used"][emoji])
                 try:
                     await member.add_roles(role)
-                    await member.send(f"Added `{role.name}` role in `{member.guild.name}`!")
                 except discord.Forbidden:
-                    await member.guild.system_channel.send("Cannot give reaction role. Please allow manage roles permission or \
-move bot role above role to give.")
+                    await member.guild.system_channel.send("Cannot give reaction role. Please allow manage roles permission or "
+                    + "move bot role above role to give.")
+                try:
+                    await member.send(f"Added `{role.name}` role in `{member.guild.name}`!")
+                except:
+                    # probably user doesn't allow dms
+                    pass
 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
@@ -115,28 +120,32 @@ move bot role above role to give.")
         """
         # basically like add but instead we remove the role or do nothing if the role isn't
         # given to the user
-        guild = self.bot.get_guild(id=payload.guild_id)
+        guild: discord.Guild = self.bot.get_guild(id=payload.guild_id)
         if not guild:
             return
-        member = guild.get_member(payload.user_id)
+        member: discord.Member = guild.get_member(payload.user_id)
         if member.bot:
             return
-        info_dir = "./Servers/server_" + str(payload.guild_id) + "/guild_info.json"
-        info_file = open(info_dir)
-        guild_info = json.load(info_file)
+        info_dir: str = "./Servers/server_" + str(payload.guild_id) + "/guild_info.json"
+        info_file: TextIOWrapper = open(info_dir)
+        guild_info: dict = json.load(info_file)
         info_file.close()
-        if "role_reactions" in guild_info and str(payload.message_id) in guild_info["role_reactions"]:
-            react_dict = guild_info["role_reactions"][str(payload.message_id)][1]
-            emoji = str(payload.emoji)
-            if emoji in react_dict:
-                role = get(guild.roles, id=react_dict[emoji])
+        if "role_reactions" in guild_info and payload.message_id == guild_info["role_reactions"]["message"]:
+            react_dict: dict = guild_info["role_reactions"]["reactions"]
+            emoji: str = str(payload.emoji)
+            if emoji in guild_info["role_reactions"]["emojis_used"]:
+                role = get(guild.roles, id=guild_info["role_reactions"]["emojis_used"][emoji])
                 if role in member.roles:
                     try:
                         await member.remove_roles(role)
-                        await member.send(f"Removed `{role.name}` role in `{guild.name}`!")
                     except discord.Forbidden:
-                        await guild.system_channel.send("Cannot remove reaction role. Please allow manage roles permission or \
-move bot role above role to give.")
+                        await guild.system_channel.send("Cannot remove reaction role. Please allow manage roles permission or "
+                        + "move bot role above role to give.")
+                    try:
+                        await member.send(f"Removed `{role.name}` role in `{guild.name}`!")
+                    except:
+                        # user probably does not allow dms
+                        pass
                 
 def setup(bot):
     bot.add_cog(bot_events(bot))

@@ -1,8 +1,10 @@
 import discord
-from api_requests import InvalidParams, BadRequest, get_reddit_posts
+from discord.ext.commands.cooldowns import BucketType
+from api_requests import BadRequest, get_reddit_posts, get_nekos_api
 from discord_slash import cog_ext, SlashContext
 from discord_slash.utils.manage_commands import create_choice, create_option
 from discord.ext import commands
+from discord.ext.commands import errors
 from random import choice
 import discord
 
@@ -45,7 +47,7 @@ class api_cmds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    @cog_ext.cog_slash(name="reddit", description="Get a post from reddit", 
+    @cog_ext.cog_slash(name="reddit", description="Get a post from reddit",
     options = [
         create_option (
             name="subreddit",
@@ -88,6 +90,7 @@ class api_cmds(commands.Cog):
             required=False
         ),
     ])
+    @commands.cooldown(rate=1, per=10, type=BucketType.user)
     async def reddit(self, ctx: SlashContext, subreddit: str = "", 
     sort: str = "", num_posts: int = 0) -> None:
         """
@@ -99,6 +102,8 @@ class api_cmds(commands.Cog):
         :param num_posts: The number of posts to look through
         :return: None
         """
+        if ctx.author.bot:
+            return
         if num_posts:
             num_posts = str(num_posts)
         try:
@@ -119,6 +124,49 @@ class api_cmds(commands.Cog):
             await ctx.send("Post selected is of unsupported rich embed type `video`.")
         except:
             await ctx.send("An unknown error occured.")
+
+    @cog_ext.cog_subcommand(base="nekos", subcommand_group="sfw", name="anime",
+    options = [
+        create_option (
+            name="options",
+            description="SFW Endpoints to choose from",
+            option_type=3,
+            required=True,
+            choices = [
+                create_choice (
+                    name="Neko",
+                    value="neko"
+                ),
+                create_choice (
+                    name="Kitsune",
+                    value="foxgirl"
+                ),
+                create_choice (
+                    name="Nekomimi",
+                    value="animalears"
+                ),
+            ]
+        ),
+    ])
+    @commands.cooldown(rate=1, per=10, type=BucketType.user)
+    async def _nekos_sfw_anime(self, ctx: SlashContext, options: str) -> None:
+        messages: dict = {"foxgirl": "Cute fox girls 😍🦊", "neko": "Cat girls 😏🐱", "animalears": "Put on the cat ears. 😈"}
+        img_url: str = get_nekos_api(options)
+        img_embed: discord.Embed = discord.Embed()
+        img_embed.set_author(name="For: " + ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        img_embed.title = messages[options]
+        img_embed.url = "https://nekos.fun"
+        img_embed.set_image(url=img_url)
+        img_embed.set_footer(text="Requested from nekos.fun")
+        await ctx.send(embed=img_embed)
+
+    @reddit.error
+    @_nekos_sfw_anime.error
+    async def api_slash_error(self, ctx: SlashContext, err: Exception) -> None:
+        if isinstance(err, errors.CommandOnCooldown):
+            await ctx.send(content=str(err), hidden=True)
+        else:
+            print(err)
 
 def setup(bot):
     bot.add_cog(api_cmds(bot))
